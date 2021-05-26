@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Text_Classification_ML
 {
@@ -20,7 +21,7 @@ namespace Text_Classification_ML
             foreach (var name in FilesToClassify)
                 Texts.Add(GetFile(name));
 
-            Texts.ForEach(t => t.ShowStats());
+            Texts.ForEach(t => { t.ShowStats(); t.WriteStatsToFile(); });
 
             //Console.WriteLine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName);
             Console.ReadKey();

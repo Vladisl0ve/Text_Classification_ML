@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,27 +17,6 @@ namespace Text_Classification_ML
         private string[] _label4class;
         private string[] _rating;
         private string[] _subj;
-
-        public string[] TextLinesArr { get => _subj; }
-        public string[] Words
-        {
-            get
-            {
-                List<string> words = new List<string>();
-                foreach (var line in _subj)
-                {
-                    words.AddRange(GetWords(line));
-                }
-
-                return words.ToArray();
-            }
-        }
-        Dictionary<string, int> InfoWordCounter = new Dictionary<string, int>();
-        public TextML(string name, string[] subj)
-        {
-            Name = name;
-            _subj = subj;
-        }
 
         public TextML(string name, string[] id, string[] label3class, string[] label4class, string[] rating, string[] subj)
         {
@@ -68,6 +48,29 @@ namespace Text_Classification_ML
 
         }
 
+        public string[] TextLinesArr { get => _subj; }
+        public string[] Words
+        {
+            get
+            {
+                List<string> words = new List<string>();
+                foreach (var line in _subj)
+                {
+                    words.AddRange(GetWords(line));
+                }
+
+                return words.ToArray();
+            }
+        }
+        Dictionary<string, int> InfoWordCounter = new Dictionary<string, int>();
+        public TextML(string name, string[] subj)
+        {
+            Name = name;
+            _subj = subj;
+        }
+
+
+
         public void ShowTop10Rarest()
         {
             ConsoleTable table = new ConsoleTable("Lp.", "Word", "Amount");
@@ -95,13 +98,6 @@ namespace Text_Classification_ML
 
             Console.WriteLine("---------- TOP 10 POPULAR WORDS ----------\n");
             Console.WriteLine(table.ToStringAlternative());
-            /* Console.WriteLine($"TOP-5 WORDS FOR {Name}\n" +
-                 $"1. {InfoWordCounter.ElementAt(0).Key}: {InfoWordCounter.ElementAt(0).Value}\n" +
-                 $"2. {InfoWordCounter.ElementAt(1).Key}: {InfoWordCounter.ElementAt(1).Value}\n" +
-                 $"3. {InfoWordCounter.ElementAt(2).Key}: {InfoWordCounter.ElementAt(2).Value}\n" +
-                 $"4. {InfoWordCounter.ElementAt(3).Key}: {InfoWordCounter.ElementAt(3).Value}\n" +
-                 $"5. {InfoWordCounter.ElementAt(4).Key}: {InfoWordCounter.ElementAt(4).Value}\n");
-             */
         }
         public void ShowSize() => Console.WriteLine($"AMOUNT OF LINES: {_subj.Length}\n" +
                                                     $"AMOUNT OF WORDS: {Words.Length}\n" +
@@ -111,10 +107,8 @@ namespace Text_Classification_ML
         {
             string[] uniqWords = InfoWordCounter.Keys.ToArray();
             string longest = uniqWords.OrderByDescending(w => w.Length).First();
-           // string shortest = uniqWords.OrderBy(w => w.Length).ThenByDescending(w => w).First();
 
             Console.WriteLine($"The longest word is {longest}");
-           // Console.WriteLine($"The shortest word is {shortest}");
         }
 
         public void ShowStats()
@@ -131,6 +125,23 @@ namespace Text_Classification_ML
             Console.WriteLine($"");
         }
 
+        public void WriteStatsToFile()
+        {
+
+            ConsoleTable table = new ConsoleTable("Lp.", "Word", "Amount");
+
+            for (int i = 0; i < InfoWordCounter.Count(); i++)
+                table.AddRow(i + 1, InfoWordCounter.ElementAt(i).Key, InfoWordCounter.ElementAt(i).Value);
+
+            string toWrite = $"{Name}\n" +
+                             $"{table.ToStringAlternative()}";
+            string pathToSave = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName,
+                                "Saved_results",
+                                 $"{Name}_stats.txt");
+            File.WriteAllText(pathToSave, toWrite);
+
+        }
+
         static string[] GetWords(string input)
         {
             MatchCollection matches = Regex.Matches(input, @"\b[\w']*\b");
@@ -140,9 +151,6 @@ namespace Text_Classification_ML
                         where !m.Value.Contains('_')
                         select TrimSuffix(m.Value);
 
-
-            //AMOUNT OF WORDS: 641513
-            //AMOUNT OF UNIQUE WORDS: 23790
             return words.ToArray();
         }
 
