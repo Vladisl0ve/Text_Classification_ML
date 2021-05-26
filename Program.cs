@@ -22,13 +22,13 @@ namespace Text_Classification_ML
 
             Texts.ForEach(t => t.ShowStats());
 
-            //Console.WriteLine(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scaledata", "2", ""));
+            //Console.WriteLine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName);
             Console.ReadKey();
         }
 
         static TextML GetFile(string name)
         {
-            string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scaledata", name);
+            string folderPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "scaledata", name);
             string[] idFile = File.ReadAllLines(Path.Combine(folderPath, $"id.{name}"));
             string[] label3classFile = File.ReadAllLines(Path.Combine(folderPath, $"label.3class.{name}"));
             string[] label4classFile = File.ReadAllLines(Path.Combine(folderPath, $"label.4class.{name}"));
