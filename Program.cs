@@ -17,14 +17,16 @@ namespace Text_Classification_ML
                                     {
                                         "Dennis+Schwartz",
                                         "James+Berardinelli",
-                                        //"Scott+Renshaw",
-                                       // "Steve+Rhodes",
+                                       // "Scott+Renshaw",
+                                        //"Steve+Rhodes",
                                     };
 
             List<TextML> Texts = new List<TextML>();
             foreach (var name in FilesToClassify)
                 Texts.Add(GetFile(name));
 
+            List<String> Files1 = new List<string>() { FilesToClassify.First() };
+            List<String> Files2 = new List<string>() { FilesToClassify.Last() };
             var mlContext = new MLContext();
 
             var trainData = LoadData(mlContext, Texts, FilesToClassify);
@@ -137,9 +139,15 @@ namespace Text_Classification_ML
             Console.WriteLine("=============== Prediction Test of loaded model with a multiple samples ===============");
 
             Console.WriteLine();
-            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleB).Rating} | Prediction: {(Convert.ToBoolean(resultPredictionB.Prediction) ? "Negative" : "Positive")} | Probability: {resultPredictionB.Probability} ");
-            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleG).Rating} | Prediction: {(Convert.ToBoolean(resultPredictionG.Prediction) ? "Negative" : "Positive")} | Probability: {resultPredictionG.Probability} ");
-            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleN).Rating} | Prediction: {(Convert.ToBoolean(resultPredictionN.Prediction) ? "Negative" : "Positive")} | Probability: {resultPredictionN.Probability} ");
+            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleB).Rating} | " +
+                              $"Prediction: {(Convert.ToBoolean(resultPredictionB.Prediction) ? "Negative" : "Positive")} | " +
+                              $"Probability: {resultPredictionB.Probability} ");
+            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleG).Rating} | " +
+                              $"Prediction: {(Convert.ToBoolean(resultPredictionG.Prediction) ? "Negative" : "Positive")} | " +
+                              $"Probability: {resultPredictionG.Probability} ");
+            Console.WriteLine($"Rating: {Texts.Last().ReviewMLs.ElementAt(exampleN).Rating} | " +
+                              $"Prediction: {(Convert.ToBoolean(resultPredictionN.Prediction) ? "Negative" : "Positive")} | " +
+                              $"Probability: {resultPredictionN.Probability} ");
 
             Console.WriteLine("=============== End of Predictions ===============");
             Console.WriteLine();
