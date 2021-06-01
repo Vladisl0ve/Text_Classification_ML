@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,9 +10,35 @@ using ConsoleTables;
 
 namespace Text_Classification_ML
 {
+    class ReviewML
+    {
+        public int Id { get; set; }
+        public string Subj { get; set; }
+        public int Label3Class { get; set; }
+        public int Label4Class { get; set; }
+        public float Rating { get; set; }
+
+        public bool IsToxic
+        {
+            get => Label4Class == 0 || Label4Class == 1;
+        }
+
+        public ReviewML(string id, string label3class, string label4class, string rating, string subj)
+        {
+            Id = int.Parse(id);
+            Label3Class = int.Parse(label3class);
+            Label4Class = int.Parse(label4class);
+            Rating = float.Parse(rating, CultureInfo.InvariantCulture);
+            Subj = subj;
+        }
+    }
+
     class TextML
     {
         public string Name;
+
+        public List<ReviewML> ReviewMLs = new List<ReviewML>();
+
         private string[] _id;
         private string[] _label3class;
         private string[] _label4class;
@@ -28,7 +55,14 @@ namespace Text_Classification_ML
             _rating = rating;
             _subj = subj;
 
+            InitReviewML();
             InitInfo();
+        }
+
+        private void InitReviewML()
+        {
+            for (int i = 0; i < _id.Length; i++)
+                ReviewMLs.Add(new ReviewML(_id[i], _label3class[i], _label4class[i], _rating[i], _subj[i]));
         }
 
         private void InitInfo()
