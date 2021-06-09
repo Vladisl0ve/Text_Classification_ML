@@ -17,24 +17,62 @@ namespace Text_Classification_ML
                                     {
                                         "Dennis+Schwartz",
                                         "James+Berardinelli",
-                                       // "Scott+Renshaw",
+                                        //"Scott+Renshaw",
                                         //"Steve+Rhodes",
                                     };
 
-            List<TextML> Texts = new List<TextML>();
+            List<string> FilesToTest = new List<string>()
+                                    {
+                                        //"Dennis+Schwartz",
+                                        //"James+Berardinelli",
+                                        "Scott+Renshaw",
+                                        //"Steve+Rhodes",
+                                    };
+
+            List<string> FilesToValidate = new List<string>()
+                                    {
+                                        //"Dennis+Schwartz",
+                                        //"James+Berardinelli",
+                                        //"Scott+Renshaw",
+                                        "Steve+Rhodes",
+                                    };
+
+            List<TextML> TextsToTrain = new List<TextML>();
             foreach (var name in FilesToClassify)
-                Texts.Add(GetFile(name));
+                TextsToTrain.Add(GetFile(name));
+
+            List<TextML> TextsToTest = new List<TextML>();
+            foreach (var name in FilesToTest)
+                TextsToTest.Add(GetFile(name));
+
+            List<TextML> TextsToValidate = new List<TextML>();
+            foreach (var name in FilesToValidate)
+                TextsToValidate.Add(GetFile(name));
 
             List<String> Files1 = new List<string>() { FilesToClassify.First() };
             List<String> Files2 = new List<string>() { FilesToClassify.Last() };
-            var mlContext = new MLContext();
 
-            var trainData = LoadData(mlContext, Texts, FilesToClassify);
-            var model = BuildAndTrainModel(mlContext, trainData);
+            //Naive Baise model
+            var mlContextNB = new MLContext();
 
-            Evaluate(mlContext, model, trainData);
+            var trainDataNB = LoadDataNB(mlContextNB, TextsToTrain, FilesToClassify);
+            var testDataNB = LoadDataNB(mlContextNB, TextsToTest, FilesToTest);
+            var validateDataNB = LoadDataNB(mlContextNB, TextsToValidate, FilesToValidate);
+            var modelNB = BuildAndTrainModelNB(mlContextNB, trainDataNB);
+            EvaluateNB(mlContextNB, modelNB, testDataNB);
+            ValidateNB(mlContextNB, validateDataNB);
 
-            Test(mlContext, model, Texts);
+
+            //SVM model
+            var mlContextSVM = new MLContext();
+
+            var trainDataSVM = LoadDataSVM(mlContextSVM, TextsToTrain, FilesToClassify);
+            var testDataSVM = LoadDataSVM(mlContextSVM, TextsToTest, FilesToTest);
+            var validateDataSVM = LoadDataSVM(mlContextSVM, TextsToValidate, FilesToValidate);
+            var modelSVM = BuildAndTrainModelSVM(mlContextSVM, trainDataSVM);
+            EvaluateSVM(mlContextSVM, modelSVM, testDataSVM);
+            ValidateSVM(mlContextSVM, validateDataSVM);
+
 
 
             #region TestModels
@@ -75,15 +113,15 @@ namespace Text_Classification_ML
             Console.ReadKey();
         }
 
-        private static IDataView LoadData(MLContext mlContext, List<TextML> listTexts, List<string> files)
+        private static IDataView LoadDataNB(MLContext mlContext, List<TextML> listTexts, List<string> files)
         {
-            List<TextData> textData = new List<TextData>();
+            List<TextDataNB> textData = new List<TextDataNB>();
 
             foreach (var file in files)
             {
                 foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
                 {
-                    textData.Add(new TextData() { TextIsToxic = review.IsToxic, TextSubj = review.Subj });
+                    textData.Add(new TextDataNB() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
                 }
             }
 
@@ -91,46 +129,195 @@ namespace Text_Classification_ML
             return trainingData;
         }
 
-        public static ITransformer BuildAndTrainModel(MLContext mlContext, IDataView trainingData)
+        private static IDataView LoadDataSVM(MLContext mlContext, List<TextML> listTexts, List<string> files)
         {
-            var estimator = mlContext.Transforms.Text
-                          .FeaturizeText(outputColumnName: "Features", inputColumnName: nameof(TextData.TextSubj))
-                          .Append(mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(labelColumnName: "Label", featureColumnName: "Features"));
+            List<TextDataSVM> textData = new List<TextDataSVM>();
 
-            Console.WriteLine("=============== Create and Train the Model ===============");
+            foreach (var file in files)
+            {
+                foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
+                {
+                    textData.Add(new TextDataSVM() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
+                }
+            }
+
+            IDataView trainingData = mlContext.Data.LoadFromEnumerable(textData);
+            return trainingData;
+        }
+
+        private static IDataView LoadDataValidateNB(MLContext mlContext, List<TextML> listTexts, List<string> files)
+        {
+            List<TextDataNB> textData = new List<TextDataNB>();
+
+            foreach (var file in files)
+            {
+                foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
+                {
+                    textData.Add(new TextDataNB() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
+                }
+            }
+
+            var data = mlContext.Data.LoadFromEnumerable(textData);
+
+            // Define data prep estimator
+            IEstimator<ITransformer> dataPrepEstimator =
+                mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features")
+                         .Append(mlContext.Transforms.Concatenate(outputColumnName: "Features", new string[] { "Features" }))
+                         .Append(mlContext.Transforms.NormalizeMinMax("Features"));
+
+            // Create data prep transformer
+            ITransformer dataPrepTransformer = dataPrepEstimator.Fit(data);
+
+            // Transform data
+            IDataView transformedData = dataPrepTransformer.Transform(data);
+            return transformedData;
+        }
+
+        private static IDataView LoadDataValidateSVM(MLContext mlContext, List<TextML> listTexts, List<string> files)
+        {
+            List<TextDataSVM> textData = new List<TextDataSVM>();
+
+            foreach (var file in files)
+            {
+                foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
+                {
+                    textData.Add(new TextDataSVM() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
+                }
+            }
+
+            var data = mlContext.Data.LoadFromEnumerable(textData);
+
+            // Define data prep estimator
+            IEstimator<ITransformer> dataPrepEstimator =
+                mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features")
+                         .Append(mlContext.Transforms.Concatenate(outputColumnName: "Features", new string[] { "Features" }))
+                         .Append(mlContext.Transforms.NormalizeMinMax("Features"));
+
+            // Create data prep transformer
+            ITransformer dataPrepTransformer = dataPrepEstimator.Fit(data);
+
+            // Transform data
+            IDataView transformedData = dataPrepTransformer.Transform(data);
+            return transformedData;
+        }
+
+        public static ITransformer BuildAndTrainModelNB(MLContext mlContext, IDataView trainingData)
+        {
+            var estimator = mlContext.Transforms
+                          .Conversion.MapValueToKey("Label")
+                          .Append(mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features"))
+                          .Append(mlContext.MulticlassClassification.Trainers.NaiveBayes(labelColumnName: "Label", featureColumnName: "Features"));
+
+            Console.WriteLine("=============== Create and Train the NB-Model ===============");
             var model = estimator.Fit(trainingData);
-            Console.WriteLine("=============== End of training ===============");
+            Console.WriteLine("=============== End of training NB ===============");
             Console.WriteLine();
 
             return model;
         }
 
-        private static void Evaluate(MLContext mlContext, ITransformer model, IDataView trainingData)
+        public static ITransformer BuildAndTrainModelSVM(MLContext mlContext, IDataView trainingData)
+        {
+            var estimator = mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features")
+                          .Append(mlContext.BinaryClassification.Trainers.LinearSvm("Label", featureColumnName: "Features"));
+
+            Console.WriteLine("=============== Create and Train the SVM-Model ===============");
+            var model = estimator.Fit(trainingData);
+            Console.WriteLine("=============== End of SVM training ===============");
+            Console.WriteLine();
+
+            return model;
+        }
+
+        private static void EvaluateNB(MLContext mlContext, ITransformer model, IDataView trainingData)
         {
             IDataView predictions = model.Transform(trainingData);
 
-            CalibratedBinaryClassificationMetrics metrics = mlContext.BinaryClassification.Evaluate(predictions, "Label");
+            var metrics = mlContext.MulticlassClassification.Evaluate(predictions, "Label");
 
             Console.WriteLine();
-            Console.WriteLine("Model quality metrics evaluation");
+            Console.WriteLine("NB-Model quality metrics evaluation");
+            Console.WriteLine("--------------------------------");
+            Console.WriteLine($"Micro Accuracy: {metrics.MicroAccuracy:F2}");
+            Console.WriteLine($"Macro Accuracy: {metrics.MacroAccuracy:F2}");
+            Console.WriteLine($"Log Loss: {metrics.LogLoss:F2}");
+            Console.WriteLine($"Log Loss Reduction: {metrics.LogLossReduction:F2}\n");
+            Console.WriteLine(metrics.ConfusionMatrix.GetFormattedConfusionTable());
+            Console.WriteLine("=============== End of NB-model evaluation ===============");
+        }
+        private static void EvaluateSVM(MLContext mlContext, ITransformer model, IDataView trainingData)
+        {
+            IDataView predictions = model.Transform(trainingData);
+
+            var metrics = mlContext.BinaryClassification.EvaluateNonCalibrated(data: predictions, "Label");
+
+            Console.WriteLine();
+            Console.WriteLine("SVM-Model quality metrics evaluation");
             Console.WriteLine("--------------------------------");
             Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
             Console.WriteLine($"Auc: {metrics.AreaUnderRocCurve:P2}");
             Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
-            Console.WriteLine("=============== End of model evaluation ===============");
+            Console.WriteLine("=============== End of SVM-model evaluation ===============");
         }
 
-        private static void Test(MLContext mlContext, ITransformer model, List<TextML> Texts)
+        private static void ValidateNB(MLContext mlContext, IDataView data)
         {
-            PredictionEngine<TextData, TextPrediction> predictionFunction = mlContext.Model.CreatePredictionEngine<TextData, TextPrediction>(model);
+            var estimator = mlContext.Transforms
+                          .Conversion.MapValueToKey("Label")
+                          .Append(mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features"))
+                          .Append(mlContext.MulticlassClassification.Trainers.NaiveBayes(labelColumnName: "Label", featureColumnName: "Features"));
+
+            Console.WriteLine();
+            Console.WriteLine("NB-Model validation metrics");
+            Console.WriteLine("--------------------------------");
+
+            var results = mlContext.MulticlassClassification.CrossValidate(data, estimator, numberOfFolds: 10);
+
+            var micro = results.Average(fold => fold.Metrics.MicroAccuracy);
+            var macro = results.Average(fold => fold.Metrics.MacroAccuracy);
+
+
+            Console.WriteLine($"AVG Micro Accuracy: {micro}");
+            Console.WriteLine($"AVG Macro Accuracy: {macro}");
+            Console.WriteLine("=============== End of NB-model validation ===============");
+            Console.WriteLine();
+        }
+
+        private static void ValidateSVM(MLContext mlContext, IDataView data)
+        {
+            var estimator = mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features")
+                         .Append(mlContext.BinaryClassification.Trainers.LinearSvm("Label", featureColumnName: "Features"));
+
+            Console.WriteLine();
+            Console.WriteLine("SVM-Model validation metrics");
+            Console.WriteLine("--------------------------------");
+            var crossvalidator = mlContext.BinaryClassification.CrossValidateNonCalibrated(data, estimator, numberOfFolds: 10);
+
+            var acc = crossvalidator.Average(f => f.Metrics.Accuracy);
+            var auc = crossvalidator.Average(f => f.Metrics.AreaUnderRocCurve);
+
+
+            Console.WriteLine($"AVG Accuracy: {acc:P2}");
+            Console.WriteLine($"AVG AUC: {auc:P2}");
+            Console.WriteLine("=============== End of SVM-model validation ===============");
+            Console.WriteLine();
+        }
+        private static void TestNB(MLContext mLContext, List<TextML> Texts)
+        {
+
+        }
+
+        private static void TestSdca(MLContext mlContext, ITransformer model, List<TextML> Texts)
+        {
+            PredictionEngine<TextDataNB, TextPredictionNB> predictionFunction = mlContext.Model.CreatePredictionEngine<TextDataNB, TextPredictionNB>(model);
 
 
             int exampleB = 0; //pobieram recenzję, która ma najgorszą ocenę wśród innych
             int exampleG = 1200; //tu pobieram recenzję z końca listy, czyli która ma jedną z najlepszych ocen
             int exampleN = 650; // biorę średnią recenzję ze średnią oceną
-            var sampleStatementB = new TextData() { TextSubj = Texts.Last().TextLinesArr[exampleB] };
-            var sampleStatementG = new TextData() { TextSubj = Texts.Last().TextLinesArr[exampleG] };
-            var sampleStatementN = new TextData() { TextSubj = Texts.Last().TextLinesArr[exampleN] };
+            var sampleStatementB = new TextDataNB() { TextSubj = Texts.Last().TextLinesArr[exampleB] };
+            var sampleStatementG = new TextDataNB() { TextSubj = Texts.Last().TextLinesArr[exampleG] };
+            var sampleStatementN = new TextDataNB() { TextSubj = Texts.Last().TextLinesArr[exampleN] };
 
             var resultPredictionB = predictionFunction.Predict(sampleStatementB);
             var resultPredictionG = predictionFunction.Predict(sampleStatementG);

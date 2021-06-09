@@ -12,15 +12,16 @@ namespace Text_Classification_ML
 {
     class ReviewML
     {
-        public int Id { get; set; }
-        public string Subj { get; set; }
-        public int Label3Class { get; set; }
-        public int Label4Class { get; set; }
-        public float Rating { get; set; }
+        public int Id { get; set; } 
+        public string Subj { get; set; } // Tekst recenzji
+        public int Label3Class { get; set; } // {0, 1, 2}
+        public int Label4Class { get; set; } // {0, 1, 2, 3}
+        public float Rating { get; set; } //Ocena, na podstawie której zostały stworzone Label3 oraz Label4
 
         public bool IsToxic
         {
-            get => Label4Class == 0 || Label4Class == 1;
+            get => Label4Class == 0 || Label4Class == 1; // {0, 1} - opinia jest negatywną
+                                                         // {2, 3} - opinia jest pozytywną
         }
 
         public ReviewML(string id, string label3class, string label4class, string rating, string subj)
