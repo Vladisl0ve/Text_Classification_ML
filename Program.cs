@@ -11,7 +11,14 @@ namespace Text_Classification_ML
     {
         private static void Main(string[] args)
         {
-            //Console.WriteLine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName);
+
+            List<string> AllFiles = new List<string>()
+                                    {
+                                        "Dennis+Schwartz",
+                                        "James+Berardinelli",
+                                        "Scott+Renshaw",
+                                        "Steve+Rhodes"
+                                    };
 
             List<string> FilesToClassify = new List<string>()
                                     {
@@ -37,41 +44,61 @@ namespace Text_Classification_ML
                                         "Steve+Rhodes",
                                     };
 
-            List<TextML> TextsToTrain = new List<TextML>();
-            foreach (var name in FilesToClassify)
-                TextsToTrain.Add(GetFile(name));
 
-            List<TextML> TextsToTest = new List<TextML>();
-            foreach (var name in FilesToTest)
-                TextsToTest.Add(GetFile(name));
+            List<TextML> HugeFileTexts = new List<TextML>();
+            foreach (var name in AllFiles)
+                HugeFileTexts.Add(GetFile(name));
 
-            List<TextML> TextsToValidate = new List<TextML>();
-            foreach (var name in FilesToValidate)
-                TextsToValidate.Add(GetFile(name));
 
-            List<String> Files1 = new List<string>() { FilesToClassify.First() };
-            List<String> Files2 = new List<string>() { FilesToClassify.Last() };
+            List<List<ReviewML>> tmp = GetTextProcent(60, 10, HugeFileTexts.SelectMany(h => h.ReviewMLs).ToList());
+            List<ReviewML> learnArr = tmp.ElementAt(0);
+            List<ReviewML> testArr = tmp.ElementAt(1);
+            List<ReviewML> validArr = tmp.ElementAt(2);
+
+
+
+            /*
+                        List<TextML> TextsToTrain = new List<TextML>();
+                        foreach (var name in FilesToClassify)
+                            TextsToTrain.Add(GetFile(name));
+
+                        List<TextML> TextsToTest = new List<TextML>();
+                        foreach (var name in FilesToTest)
+                            TextsToTest.Add(GetFile(name));
+
+                        List<TextML> TextsToValidate = new List<TextML>();
+                        foreach (var name in FilesToValidate)
+                            TextsToValidate.Add(GetFile(name));
+
+            */
 
             //Naive Baise model
             var mlContextNB = new MLContext();
 
-            var trainDataNB = LoadDataNB(mlContextNB, TextsToTrain, FilesToClassify);
-            var testDataNB = LoadDataNB(mlContextNB, TextsToTest, FilesToTest);
-            var validateDataNB = LoadDataNB(mlContextNB, TextsToValidate, FilesToValidate);
+            var trainDataNB = LoadDataNB(mlContextNB, learnArr);
+            var validateDataNB = LoadDataNB(mlContextNB, validArr);
+            var testDataNB = LoadDataNB(mlContextNB, testArr);
+
             var modelNB = BuildAndTrainModelNB(mlContextNB, trainDataNB);
+
             EvaluateNB(mlContextNB, modelNB, testDataNB);
             ValidateNB(mlContextNB, validateDataNB);
+
+
 
 
             //SVM model
             var mlContextSVM = new MLContext();
 
-            var trainDataSVM = LoadDataSVM(mlContextSVM, TextsToTrain, FilesToClassify);
-            var testDataSVM = LoadDataSVM(mlContextSVM, TextsToTest, FilesToTest);
-            var validateDataSVM = LoadDataSVM(mlContextSVM, TextsToValidate, FilesToValidate);
+            var trainDataSVM = LoadDataSVM(mlContextSVM, learnArr);
+            var validateDataSVM = LoadDataSVM(mlContextSVM, validArr);
+            var testDataSVM = LoadDataSVM(mlContextSVM, testArr);
+
             var modelSVM = BuildAndTrainModelSVM(mlContextSVM, trainDataSVM);
+
             EvaluateSVM(mlContextSVM, modelSVM, testDataSVM);
             ValidateSVM(mlContextSVM, validateDataSVM);
+
 
 
 
@@ -110,36 +137,34 @@ namespace Text_Classification_ML
                         //var label3class = mlContext.Model.CreatePredictionEngine<TextData, TextPrediction>(model).Predict(review);
                     */
             #endregion
+            Console.WriteLine("Press any key...");
             Console.ReadKey();
         }
 
-        private static IDataView LoadDataNB(MLContext mlContext, List<TextML> listTexts, List<string> files)
+        private static IDataView LoadDataNB(MLContext mlContext, List<ReviewML> reviews)
         {
             List<TextDataNB> textData = new List<TextDataNB>();
 
-            foreach (var file in files)
+
+            foreach (var review in reviews)
             {
-                foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
-                {
-                    textData.Add(new TextDataNB() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
-                }
+                textData.Add(new TextDataNB() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
             }
+
 
             IDataView trainingData = mlContext.Data.LoadFromEnumerable(textData);
             return trainingData;
         }
 
-        private static IDataView LoadDataSVM(MLContext mlContext, List<TextML> listTexts, List<string> files)
+        private static IDataView LoadDataSVM(MLContext mlContext, List<ReviewML> reviews)
         {
             List<TextDataSVM> textData = new List<TextDataSVM>();
 
-            foreach (var file in files)
+            foreach (var review in reviews)
             {
-                foreach (var review in listTexts.Where(t => t.Name == file).ToList().First().ReviewMLs)
-                {
-                    textData.Add(new TextDataSVM() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
-                }
+                textData.Add(new TextDataSVM() { Label4Class = review.Label4Class, Rating = review.Rating, TextIsToxic = review.IsToxic, Label3Class = review.Label3Class, TextSubj = review.Subj });
             }
+
 
             IDataView trainingData = mlContext.Data.LoadFromEnumerable(textData);
             return trainingData;
@@ -219,7 +244,7 @@ namespace Text_Classification_ML
         public static ITransformer BuildAndTrainModelSVM(MLContext mlContext, IDataView trainingData)
         {
             var estimator = mlContext.Transforms.Text.FeaturizeText(outputColumnName: "Features", inputColumnName: "Features")
-                          .Append(mlContext.BinaryClassification.Trainers.LinearSvm("Label", featureColumnName: "Features"));
+                          .Append(mlContext.BinaryClassification.Trainers.LinearSvm("Label", featureColumnName: "Features", numberOfIterations: 10));
 
             Console.WriteLine("=============== Create and Train the SVM-Model ===============");
             var model = estimator.Fit(trainingData);
@@ -238,8 +263,8 @@ namespace Text_Classification_ML
             Console.WriteLine();
             Console.WriteLine("NB-Model quality metrics evaluation");
             Console.WriteLine("--------------------------------");
-            Console.WriteLine($"Micro Accuracy: {metrics.MicroAccuracy:F2}");
-            Console.WriteLine($"Macro Accuracy: {metrics.MacroAccuracy:F2}");
+            Console.WriteLine($"Micro Accuracy: {metrics.MicroAccuracy:P2}");
+            Console.WriteLine($"Macro Accuracy: {metrics.MacroAccuracy:P2}");
             Console.WriteLine($"Log Loss: {metrics.LogLoss:F2}");
             Console.WriteLine($"Log Loss Reduction: {metrics.LogLossReduction:F2}\n");
             Console.WriteLine(metrics.ConfusionMatrix.GetFormattedConfusionTable());
@@ -254,7 +279,7 @@ namespace Text_Classification_ML
             Console.WriteLine();
             Console.WriteLine("SVM-Model quality metrics evaluation");
             Console.WriteLine("--------------------------------");
-            Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
+            Console.WriteLine($"Accuracy: {metrics.Accuracy:P3}");
             Console.WriteLine($"Auc: {metrics.AreaUnderRocCurve:P2}");
             Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
             Console.WriteLine("=============== End of SVM-model evaluation ===============");
@@ -277,8 +302,8 @@ namespace Text_Classification_ML
             var macro = results.Average(fold => fold.Metrics.MacroAccuracy);
 
 
-            Console.WriteLine($"AVG Micro Accuracy: {micro}");
-            Console.WriteLine($"AVG Macro Accuracy: {macro}");
+            Console.WriteLine($"AVG Micro Accuracy: {micro:P2}");
+            Console.WriteLine($"AVG Macro Accuracy: {macro:P2}");
             Console.WriteLine("=============== End of NB-model validation ===============");
             Console.WriteLine();
         }
@@ -383,6 +408,18 @@ namespace Text_Classification_ML
             TextML textML = new TextML(name, idFile, label3classFile, label4classFile, ratingFile, subjFile);
 
             return textML;
+        }
+
+        private static List<List<ReviewML>> GetTextProcent(int procLearn, int procTest, List<ReviewML> texts) //na wyhode budet w perwom elemente proc% elementow, a wo wtorom - ostalnoe
+        {
+            var list = new List<List<ReviewML>>();
+
+            int countLearn = texts.Count() * procLearn / 100;
+            int countTest = texts.Count() * procTest / 100;
+            list.Add(texts.Take(countLearn).ToList());
+            list.Add(texts.Skip(countLearn).Take(countTest).ToList());
+            list.Add(texts.Skip(countLearn + countTest).Take(texts.Count() - countLearn - countTest).ToList());
+            return list;
         }
     }
 }

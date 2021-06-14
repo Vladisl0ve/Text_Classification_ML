@@ -12,7 +12,7 @@ namespace Text_Classification_ML
 {
     class ReviewML
     {
-        public int Id { get; set; } 
+        public int Id { get; set; }
         public string Subj { get; set; } // Tekst recenzji
         public int Label3Class { get; set; } // {0, 1, 2}
         public int Label4Class { get; set; } // {0, 1, 2, 3}
@@ -58,6 +58,17 @@ namespace Text_Classification_ML
 
             InitReviewML();
             InitInfo();
+        }
+
+        public TextML(List<ReviewML> reviews)
+        {
+            ReviewMLs = new List<ReviewML>(reviews);
+
+            _id = reviews.Select(r => r.Id.ToString()).ToArray();
+            _label3class = reviews.Select(r => r.Label3Class.ToString()).ToArray();
+            _label4class = reviews.Select(r => r.Label4Class.ToString()).ToArray();
+            _rating = reviews.Select(r => r.Rating.ToString()).ToArray();
+            _subj = reviews.Select(r => r.Subj).ToArray();
         }
 
         private void InitReviewML()
